@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gallery | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="Gallery">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">Gallery</h1>
+      </div>
+      <div class="a-topbar-actions"><div class="a-user" id="a-user-info"></div></div>
+    </header>
+    <main class="a-content">
+      <div class="a-toolbar">
+        <div class="a-toolbar-left">
+          <select class="a-select" id="category-filter"><option value="">All Categories</option></select>
+        </div>
+        <button class="a-btn a-btn-primary" id="btn-add-image">+ Add Image</button>
+      </div>
+      <div class="a-panel">
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Image</th><th>Title</th><th>Category</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="gallery-body"></tbody>
+        </table></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="gallery-modal">
+  <div class="a-modal">
+    <div class="a-modal-head"><h3 id="gallery-modal-title">Add Image</h3><button class="a-modal-close" data-close="gallery-modal">✕</button></div>
+    <div class="a-modal-body">
+      <form id="gallery-form">
+        <input type="hidden" name="id">
+        <div class="a-form-grid">
+          <div class="a-field full"><label>Title / Caption</label><input type="text" name="title" required></div>
+          <div class="a-field"><label>Category</label>
+            <select name="category"><option>Classroom</option><option>Workshop</option><option>Practical Training</option><option>Student Activities</option></select>
+          </div>
+          <div class="a-field"><label>Display Order</label><input type="number" name="order" min="1" required></div>
+          <div class="a-field full"><label>Local image path</label><input type="text" name="image" placeholder="assets/images/course-electrical.jpg" required></div>
+          <div class="a-field full"><label>Published on Public Site</label>
+            <select name="published"><option value="true">Yes</option><option value="false">No</option></select>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="a-modal-foot">
+      <button class="a-btn a-btn-outline" data-close="gallery-modal">Cancel</button>
+      <button class="a-btn a-btn-primary" id="btn-save-image">Save Image</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    var body = document.getElementById("gallery-body");
+    var categoryFilter = document.getElementById("category-filter");
+    var form = document.getElementById("gallery-form");
+    ["Classroom","Workshop","Practical Training","Student Activities"].forEach(function (c) {
+      categoryFilter.insertAdjacentHTML("beforeend", '<option>' + c + '</option>');
+    });
+
+    function render() {
+      var d = MEP.load();
+      var cf = categoryFilter.value;
+      body.innerHTML = "";
+      var list = d.gallery.filter(function (g) { return !cf || g.category === cf; }).sort(function(a,b){return a.order-b.order;});
+      list.forEach(function (g) {
+        body.insertAdjacentHTML("beforeend",
+          "<tr><td><img class='a-thumb' src='" + A.esc(MEP.imageURL(g.image)) + "' alt=''></td><td><strong>" + A.esc(g.title) + "</strong></td>" +
+          "<td>" + A.esc(g.category) + "</td><td>" + g.order + "</td>" +
+          "<td><span class='" + A.badgeClass(g.published ? "Published" : "Draft") + "'>" + (g.published ? "Published" : "Unpublished") + "</span></td>" +
+          "<td class='a-row-actions'>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-edit='" + g.id + "'>Edit</button>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-toggle='" + g.id + "'>" + (g.published ? "Unpublish" : "Publish") + "</button>" +
+          "<button class='a-btn a-btn-danger a-btn-sm' data-del='" + g.id + "'>Delete</button>" +
+          "</td></tr>");
+      });
+      if (!list.length) body.innerHTML = "<tr><td colspan='6' class='a-empty'>No images match your filters.</td></tr>";
+    }
+
+    function openForm(g) {
+      form.reset();
+      document.getElementById("gallery-modal-title").textContent = g ? "Edit Image" : "Add Image";
+      form.elements.namedItem("id").value = g ? g.id : "";
+      if (g) {
+        form.elements.namedItem("title").value = g.title; form.elements.namedItem("category").value = g.category; form.elements.namedItem("order").value = g.order;
+        form.elements.namedItem("image").value = g.image; form.elements.namedItem("published").value = String(g.published);
+      } else {
+        var d = MEP.load();
+        form.elements.namedItem("order").value = d.gallery.length + 1;
+      }
+      A.openModal("gallery-modal");
+    }
+
+    document.getElementById("btn-add-image").addEventListener("click", function () { openForm(null); });
+    document.querySelectorAll('[data-close="gallery-modal"]').forEach(function (b) { b.addEventListener("click", function () { A.closeModal("gallery-modal"); }); });
+
+    body.addEventListener("click", function (e) {
+      var d = MEP.load();
+      var editId = e.target.getAttribute("data-edit");
+      var delId = e.target.getAttribute("data-del");
+      var toggleId = e.target.getAttribute("data-toggle");
+      if (editId) openForm(d.gallery.filter(function(g){return g.id===editId;})[0]);
+      if (delId) {
+        if (confirm("Delete this image?")) { d.gallery = d.gallery.filter(function (g) { return g.id !== delId; }); MEP.save(d); A.toast("Image deleted."); render(); }
+      }
+      if (toggleId) {
+        var g = d.gallery.filter(function (x) { return x.id === toggleId; })[0];
+        g.published = !g.published;
+        MEP.save(d); A.toast("Image visibility updated."); render();
+      }
+    });
+
+    document.getElementById("btn-save-image").addEventListener("click", function () {
+      if (!form.elements.namedItem("title").value.trim() || !form.elements.namedItem("image").value.trim()) { A.toast("Please fill in the required fields."); return; }
+      var d = MEP.load();
+      var id = form.elements.namedItem("id").value;
+      var record = {
+        id: id || MEP.uid("g"), title: form.elements.namedItem("title").value.trim(), category: form.elements.namedItem("category").value,
+        order: parseInt(form.elements.namedItem("order").value, 10) || 1, image: form.elements.namedItem("image").value.trim(), published: form.elements.namedItem("published").value === "true"
+      };
+      if (id) { d.gallery = d.gallery.map(function (g) { return g.id === id ? record : g; }); A.toast("Image updated."); }
+      else { d.gallery.push(record); A.toast("Image added."); }
+      MEP.save(d);
+      A.closeModal("gallery-modal");
+      render();
+    });
+
+    categoryFilter.addEventListener("change", render);
+    render();
+  };
+</script>
+</body>
+</html>

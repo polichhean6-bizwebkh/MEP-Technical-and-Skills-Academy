@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intakes / Schedule | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="Intakes / Schedule">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">Intakes / Schedule</h1>
+      </div>
+      <div class="a-topbar-actions"><div class="a-user" id="a-user-info"></div></div>
+    </header>
+    <main class="a-content">
+      <div class="a-toolbar">
+        <div class="a-toolbar-left">
+          <select class="a-select" id="course-filter"><option value="">All Courses</option></select>
+          <select class="a-select" id="status-filter">
+            <option value="">All Status</option><option>Open</option><option>Almost Full</option><option>Closed</option><option>Completed</option>
+          </select>
+        </div>
+        <button class="a-btn a-btn-primary" id="btn-add-intake">+ Add Intake</button>
+      </div>
+      <div class="a-panel">
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Course</th><th>Intake</th><th>Start – End</th><th>Days / Time</th><th>Seats</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="intakes-body"></tbody>
+        </table></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="intake-modal">
+  <div class="a-modal">
+    <div class="a-modal-head"><h3 id="intake-modal-title">Add Intake</h3><button class="a-modal-close" data-close="intake-modal">✕</button></div>
+    <div class="a-modal-body">
+      <form id="intake-form">
+        <input type="hidden" name="id">
+        <div class="a-form-grid">
+          <div class="a-field full"><label>Course</label><select name="courseId" id="intake-course-select" required></select></div>
+          <div class="a-field full"><label>Intake Name</label><input type="text" name="name" placeholder="e.g. October 2026 Intake" required></div>
+          <div class="a-field"><label>Start Date</label><input type="date" name="startDate" required></div>
+          <div class="a-field"><label>End Date</label><input type="date" name="endDate" required></div>
+          <div class="a-field"><label>Days</label><input type="text" name="days" placeholder="e.g. Mon / Wed / Fri" required></div>
+          <div class="a-field"><label>Maximum Students</label><input type="number" name="maxStudents" min="1" required></div>
+          <div class="a-field"><label>Start Time</label><input type="time" name="startTime" required></div>
+          <div class="a-field"><label>End Time</label><input type="time" name="endTime" required></div>
+          <div class="a-field"><label>Training Location</label><input type="text" name="location" required></div>
+          <div class="a-field"><label>Trainer</label><input type="text" name="trainer"></div>
+          <div class="a-field"><label>Registration Status</label>
+            <select name="status"><option>Open</option><option>Almost Full</option><option>Closed</option><option>Completed</option></select>
+          </div>
+          <div class="a-field"><label>Currently Enrolled</label><input type="number" name="enrolled" min="0"></div>
+        </div>
+      </form>
+    </div>
+    <div class="a-modal-foot">
+      <button class="a-btn a-btn-outline" data-close="intake-modal">Cancel</button>
+      <button class="a-btn a-btn-primary" id="btn-save-intake">Save Intake</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    var body = document.getElementById("intakes-body");
+    var courseFilter = document.getElementById("course-filter");
+    var statusFilter = document.getElementById("status-filter");
+    var courseSelect = document.getElementById("intake-course-select");
+    var form = document.getElementById("intake-form");
+
+    data.courses.forEach(function (c) {
+      courseFilter.insertAdjacentHTML("beforeend", '<option value="' + c.id + '">' + A.esc(c.name) + '</option>');
+      courseSelect.insertAdjacentHTML("beforeend", '<option value="' + c.id + '">' + A.esc(c.name) + '</option>');
+    });
+
+    function courseName(id, d) { var c = d.courses.filter(function(x){return x.id===id;})[0]; return c ? c.name : "Unknown Course"; }
+
+    function render() {
+      var d = MEP.load();
+      var cf = courseFilter.value, sf = statusFilter.value;
+      body.innerHTML = "";
+      var list = d.intakes.filter(function (i) {
+        if (cf && i.courseId !== cf) return false;
+        if (sf && i.status !== sf) return false;
+        return true;
+      }).sort(function(a,b){ return new Date(a.startDate) - new Date(b.startDate); });
+
+      list.forEach(function (i) {
+        body.insertAdjacentHTML("beforeend",
+          "<tr><td><strong>" + A.esc(courseName(i.courseId, d)) + "</strong><div style='color:var(--a-muted);font-size:.78rem'>" + A.esc(i.name) + "</div></td>" +
+          "<td>" + A.esc(i.name) + "</td>" +
+          "<td>" + A.fmtDate(i.startDate) + " – " + A.fmtDate(i.endDate) + "</td>" +
+          "<td>" + A.esc(i.days) + "<br><span style='color:var(--a-muted);font-size:.78rem'>" + A.esc(i.startTime) + "–" + A.esc(i.endTime) + "</span></td>" +
+          "<td>" + i.enrolled + " / " + i.maxStudents + "</td>" +
+          "<td>" + A.esc(i.location) + "</td>" +
+          "<td><span class='" + A.badgeClass(i.status) + "'>" + A.esc(i.status) + "</span></td>" +
+          "<td class='a-row-actions'>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-edit='" + i.id + "'>Edit</button>" +
+          "<button class='a-btn a-btn-danger a-btn-sm' data-del='" + i.id + "'>Delete</button>" +
+          "</td></tr>");
+      });
+      if (!list.length) body.innerHTML = "<tr><td colspan='8' class='a-empty'>No intakes match your filters.</td></tr>";
+    }
+
+    function openForm(intake) {
+      form.reset();
+      document.getElementById("intake-modal-title").textContent = intake ? "Edit Intake" : "Add Intake";
+      form.elements.namedItem("id").value = intake ? intake.id : "";
+      if (intake) {
+        form.elements.namedItem("courseId").value = intake.courseId;
+        form.elements.namedItem("name").value = intake.name;
+        form.elements.namedItem("startDate").value = intake.startDate;
+        form.elements.namedItem("endDate").value = intake.endDate;
+        form.elements.namedItem("days").value = intake.days;
+        form.elements.namedItem("maxStudents").value = intake.maxStudents;
+        form.elements.namedItem("startTime").value = intake.startTime;
+        form.elements.namedItem("endTime").value = intake.endTime;
+        form.elements.namedItem("location").value = intake.location;
+        form.elements.namedItem("trainer").value = intake.trainer;
+        form.elements.namedItem("status").value = intake.status;
+        form.elements.namedItem("enrolled").value = intake.enrolled;
+      } else {
+        form.elements.namedItem("enrolled").value = 0;
+        form.elements.namedItem("status").value = "Open";
+      }
+      A.openModal("intake-modal");
+    }
+
+    document.getElementById("btn-add-intake").addEventListener("click", function () { openForm(null); });
+    document.querySelectorAll('[data-close="intake-modal"]').forEach(function (b) { b.addEventListener("click", function () { A.closeModal("intake-modal"); }); });
+
+    body.addEventListener("click", function (e) {
+      var d = MEP.load();
+      var editId = e.target.getAttribute("data-edit");
+      var delId = e.target.getAttribute("data-del");
+      if (editId) openForm(d.intakes.filter(function(i){return i.id===editId;})[0]);
+      if (delId && d.registrations.some(function(r){return r.intakeId===delId;})) { A.toast("This intake has registrations. Close it to retain those records."); return; }
+      if (delId) {
+        if (confirm("Delete this intake?")) {
+          d.intakes = d.intakes.filter(function (i) { return i.id !== delId; });
+          MEP.save(d);
+          A.toast("Intake deleted.");
+          render();
+        }
+      }
+    });
+
+    document.getElementById("btn-save-intake").addEventListener("click", function () {
+      if (!form.elements.namedItem("courseId").value || !form.elements.namedItem("name").value.trim() || !form.elements.namedItem("startDate").value || !form.elements.namedItem("endDate").value) {
+        A.toast("Please fill in the required fields.");
+        return;
+      }
+      var d = MEP.load();
+      var id = form.elements.namedItem("id").value;
+      var record = {
+        id: id || MEP.uid("i"),
+        courseId: form.elements.namedItem("courseId").value,
+        name: form.elements.namedItem("name").value.trim(),
+        startDate: form.elements.namedItem("startDate").value,
+        endDate: form.elements.namedItem("endDate").value,
+        days: form.elements.namedItem("days").value.trim(),
+        startTime: form.elements.namedItem("startTime").value,
+        endTime: form.elements.namedItem("endTime").value,
+        maxStudents: parseInt(form.elements.namedItem("maxStudents").value, 10) || 20,
+        enrolled: parseInt(form.elements.namedItem("enrolled").value, 10) || 0,
+        location: form.elements.namedItem("location").value.trim(),
+        trainer: form.elements.namedItem("trainer").value.trim() || "Trainer to be confirmed",
+        status: form.elements.namedItem("status").value
+      };
+      if(record.enrolled>=record.maxStudents) record.status='Closed';
+      if (id) {
+        d.intakes = d.intakes.map(function (i) { return i.id === id ? record : i; });
+        A.toast("Intake updated.");
+      } else {
+        d.intakes.push(record);
+        A.toast("Intake added.");
+      }
+      MEP.save(d);
+      A.closeModal("intake-modal");
+      render();
+    });
+
+    courseFilter.addEventListener("change", render);
+    statusFilter.addEventListener("change", render);
+    render();
+  };
+</script>
+</body>
+</html>

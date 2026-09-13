@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="Dashboard">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div class="flex items-center gap-10" style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">Dashboard</h1>
+      </div>
+      <div class="a-topbar-actions">
+        <a href="../index.html" class="a-btn a-btn-outline a-btn-sm" target="_blank">View Website ↗</a>
+        <div class="a-user" id="a-user-info"></div>
+      </div>
+    </header>
+    <main class="a-content">
+      <div class="a-stats">
+        <div class="a-stat-card"><div class="label">Total Courses</div><div class="value" id="stat-courses">0</div><div class="sub" id="stat-courses-sub"></div></div>
+        <div class="a-stat-card"><div class="label">Open Intakes</div><div class="value" id="stat-intakes">0</div><div class="sub">Currently accepting students</div></div>
+        <div class="a-stat-card"><div class="label">New Registrations</div><div class="value" id="stat-new-regs">0</div><div class="sub">Awaiting first contact</div></div>
+        <div class="a-stat-card"><div class="label">Confirmed Students</div><div class="value" id="stat-confirmed">0</div><div class="sub">Registration confirmed</div></div>
+      </div>
+
+      <div class="a-panel">
+        <div class="a-panel-head"><h3>Registration Status Overview</h3></div>
+        <div class="a-panel-body">
+          <div class="a-stats" style="margin-bottom:0">
+            <div class="a-stat-card"><div class="label">New</div><div class="value" id="rs-new">0</div></div>
+            <div class="a-stat-card"><div class="label">Contacted</div><div class="value" id="rs-contacted">0</div></div>
+            <div class="a-stat-card"><div class="label">Confirmed</div><div class="value" id="rs-confirmed">0</div></div>
+            <div class="a-stat-card"><div class="label">Cancelled</div><div class="value" id="rs-cancelled">0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="a-panel">
+        <div class="a-panel-head"><h3>Upcoming Classes</h3><a href="intakes.html" class="a-btn a-btn-outline a-btn-sm">Manage Intakes</a></div>
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Course</th><th>Intake</th><th>Start Date</th><th>Days</th><th>Seats</th><th>Status</th></tr></thead>
+          <tbody id="upcoming-body"></tbody>
+        </table></div>
+      </div>
+
+      <div class="a-panel">
+        <div class="a-panel-head"><h3>Recent Registrations</h3><a href="registrations.html" class="a-btn a-btn-outline a-btn-sm">View All</a></div>
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Reg ID</th><th>Student</th><th>Course</th><th>Submitted</th><th>Status</th></tr></thead>
+          <tbody id="recent-regs-body"></tbody>
+        </table></div>
+      </div>
+    </main>
+  </div>
+</div>
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    document.getElementById("stat-courses").textContent = data.courses.length;
+    document.getElementById("stat-courses-sub").textContent = data.courses.filter(function(c){return c.status==="Published";}).length + " published";
+    document.getElementById("stat-intakes").textContent = data.intakes.filter(function(i){return i.status==="Open" || i.status==="Almost Full";}).length;
+    document.getElementById("stat-new-regs").textContent = data.registrations.filter(function(r){return r.status==="New";}).length;
+    document.getElementById("stat-confirmed").textContent = data.registrations.filter(function(r){return r.status==="Confirmed";}).length;
+
+    ["New","Contacted","Confirmed","Cancelled"].forEach(function (st) {
+      var idMap = {"New":"rs-new","Contacted":"rs-contacted","Confirmed":"rs-confirmed","Cancelled":"rs-cancelled"};
+      document.getElementById(idMap[st]).textContent = data.registrations.filter(function(r){return r.status===st;}).length;
+    });
+
+    var upcomingBody = document.getElementById("upcoming-body");
+    data.intakes.filter(function(i){return i.status !== "Closed";})
+      .sort(function(a,b){return new Date(a.startDate)-new Date(b.startDate);})
+      .slice(0,6).forEach(function (i) {
+        var course = data.courses.filter(function(c){return c.id===i.courseId;})[0] || {};
+        upcomingBody.insertAdjacentHTML("beforeend",
+          "<tr><td><strong>" + A.esc(course.name||"") + "</strong></td><td>" + A.esc(i.name) + "</td><td>" + A.fmtDate(i.startDate) + "</td>" +
+          "<td>" + A.esc(i.days) + "</td><td>" + (i.maxStudents - i.enrolled) + " / " + i.maxStudents + "</td>" +
+          "<td><span class='" + A.badgeClass(i.status) + "'>" + A.esc(i.status) + "</span></td></tr>");
+      });
+    if (!upcomingBody.children.length) upcomingBody.innerHTML = "<tr><td colspan='6' class='a-empty'>No upcoming classes.</td></tr>";
+
+    var recentBody = document.getElementById("recent-regs-body");
+    data.registrations.slice()
+      .sort(function(a,b){return new Date(b.submittedAt)-new Date(a.submittedAt);})
+      .slice(0,8).forEach(function (r) {
+        var course = data.courses.filter(function(c){return c.id===r.courseId;})[0] || {};
+        recentBody.insertAdjacentHTML("beforeend",
+          "<tr><td><strong>" + A.esc(r.id) + "</strong></td><td>" + A.esc(r.name) + "</td><td>" + A.esc(course.name||"") + "</td>" +
+          "<td>" + A.fmtDateTime(r.submittedAt) + "</td><td><span class='" + A.badgeClass(r.status) + "'>" + A.esc(r.status) + "</span></td></tr>");
+      });
+    if (!recentBody.children.length) recentBody.innerHTML = "<tr><td colspan='5' class='a-empty'>No registrations yet.</td></tr>";
+  };
+</script>
+</body>
+</html>

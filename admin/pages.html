@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Website Pages | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="Website Pages">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">Website Pages</h1>
+      </div>
+      <div class="a-topbar-actions"><div class="a-user" id="a-user-info"></div></div>
+    </header>
+    <main class="a-content">
+      <div class="a-panel">
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Page Title</th><th>Hero Title</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="pages-body"></tbody>
+        </table></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="page-modal">
+  <div class="a-modal">
+    <div class="a-modal-head"><h3 id="page-modal-title">Edit Page</h3><button class="a-modal-close" data-close="page-modal">✕</button></div>
+    <div class="a-modal-body">
+      <form id="page-form">
+        <input type="hidden" name="key">
+        <div class="a-form-grid">
+          <div class="a-field full"><label>Page Title</label><input type="text" name="pageTitle" required></div>
+          <div class="a-field full"><label>Hero Title</label><input type="text" name="heroTitle" required></div>
+          <div class="a-field full"><label>Subtitle</label><input type="text" name="subtitle"></div>
+          <div class="a-field full"><label>Content</label><textarea name="content" rows="5"></textarea></div>
+          <div class="a-field"><label>CTA Label (fixed navigation)</label><input type="text" name="cta" readonly></div>
+          <div class="a-field"><label>Status</label><select name="status" disabled><option>Published</option><option>Draft</option></select></div>
+          <div class="a-field full"><label>SEO Title</label><input type="text" name="seoTitle"></div>
+          <div class="a-field full"><label>SEO Description</label><textarea name="seoDescription" rows="2"></textarea></div>
+        </div>
+      </form>
+    </div>
+    <div class="a-modal-foot">
+      <button class="a-btn a-btn-outline" data-close="page-modal">Cancel</button>
+      <button class="a-btn a-btn-primary" id="btn-save-page">Save Page</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    var body = document.getElementById("pages-body");
+    var form = document.getElementById("page-form");
+    var pageLinks = { home: "../index.html", about: "../about.html", contact: "../contact.html" };
+
+    function render() {
+      var d = MEP.load();
+      body.innerHTML = "";
+      Object.keys(d.pages).forEach(function (key) {
+        var p = d.pages[key];
+        body.insertAdjacentHTML("beforeend",
+          "<tr><td><strong>" + A.esc(p.pageTitle) + "</strong></td><td>" + A.esc(p.heroTitle) + "</td>" +
+          "<td><span class='" + A.badgeClass(p.status) + "'>" + A.esc(p.status) + "</span></td>" +
+          "<td class='a-row-actions'>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-edit='" + key + "'>Edit</button>" +
+          "<a class='a-btn a-btn-outline a-btn-sm' href='" + pageLinks[key] + "' target='_blank'>Preview</a>" +
+          "</td></tr>");
+      });
+    }
+
+    function openForm(key) {
+      var d = MEP.load();
+      var p = d.pages[key];
+      form.reset();
+      form.elements.namedItem("key").value = key;
+      document.getElementById("page-modal-title").textContent = "Edit Page — " + p.pageTitle;
+      form.elements.namedItem("pageTitle").value = p.pageTitle;
+      form.elements.namedItem("heroTitle").value = p.heroTitle;
+      form.elements.namedItem("subtitle").value = p.subtitle;
+      form.elements.namedItem("content").value = p.content;
+      form.elements.namedItem("cta").value = p.cta;
+      form.elements.namedItem("status").value = p.status;
+      form.elements.namedItem("seoTitle").value = p.seoTitle;
+      form.elements.namedItem("seoDescription").value = p.seoDescription;
+      A.openModal("page-modal");
+    }
+
+    body.addEventListener("click", function (e) {
+      var key = e.target.getAttribute("data-edit");
+      if (key) openForm(key);
+    });
+    document.querySelectorAll('[data-close="page-modal"]').forEach(function (b) { b.addEventListener("click", function () { A.closeModal("page-modal"); }); });
+
+    document.getElementById("btn-save-page").addEventListener("click", function () {
+      var d = MEP.load();
+      var key = form.elements.namedItem("key").value;
+      d.pages[key] = {
+        pageTitle: form.elements.namedItem("pageTitle").value.trim(),
+        heroTitle: form.elements.namedItem("heroTitle").value.trim(),
+        subtitle: form.elements.namedItem("subtitle").value.trim(),
+        content: form.elements.namedItem("content").value.trim(),
+        cta: form.elements.namedItem("cta").value.trim(),
+        status: form.elements.namedItem("status").value,
+        seoTitle: form.elements.namedItem("seoTitle").value.trim(),
+        seoDescription: form.elements.namedItem("seoDescription").value.trim()
+      };
+      MEP.save(d);
+      A.toast("Page content saved.");
+      A.closeModal("page-modal");
+      render();
+    });
+
+    render();
+  };
+</script>
+</body>
+</html>

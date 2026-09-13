@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>News | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="News">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">News</h1>
+      </div>
+      <div class="a-topbar-actions"><div class="a-user" id="a-user-info"></div></div>
+    </header>
+    <main class="a-content">
+      <div class="a-toolbar">
+        <div class="a-toolbar-left">
+          <select class="a-select" id="status-filter"><option value="">All Status</option><option>Published</option><option>Draft</option></select>
+        </div>
+        <button class="a-btn a-btn-primary" id="btn-add-news">+ Create News</button>
+      </div>
+      <div class="a-panel">
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Article</th><th>Category</th><th>Publish Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="news-body"></tbody>
+        </table></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="news-modal">
+  <div class="a-modal">
+    <div class="a-modal-head"><h3 id="news-modal-title">Create News</h3><button class="a-modal-close" data-close="news-modal">✕</button></div>
+    <div class="a-modal-body">
+      <form id="news-form">
+        <input type="hidden" name="id">
+        <div class="a-form-grid">
+          <div class="a-field full"><label>Title</label><input type="text" name="title" required></div>
+          <div class="a-field"><label>Category</label>
+            <select name="category"><option>Announcement</option><option>Workshop</option><option>Student Activity</option><option>Academy Announcement</option></select>
+          </div>
+          <div class="a-field"><label>Publish Date</label><input type="date" name="publishDate" required></div>
+          <div class="a-field full"><label>Local image path</label><input type="text" name="image" placeholder="assets/images/course-electrical.jpg"></div>
+          <div class="a-field full"><label>Excerpt</label><textarea name="excerpt" rows="2" required></textarea></div>
+          <div class="a-field full"><label>Article Content</label><textarea name="content" rows="5"></textarea></div>
+          <div class="a-field"><label>Status</label><select name="status"><option>Draft</option><option>Published</option></select></div>
+        </div>
+      </form>
+    </div>
+    <div class="a-modal-foot">
+      <button class="a-btn a-btn-outline" data-close="news-modal">Cancel</button>
+      <button class="a-btn a-btn-primary" id="btn-save-news">Save Article</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    var body = document.getElementById("news-body");
+    var statusFilter = document.getElementById("status-filter");
+    var form = document.getElementById("news-form");
+
+    function render() {
+      var d = MEP.load();
+      var sf = statusFilter.value;
+      body.innerHTML = "";
+      var list = d.news.filter(function (n) { return !sf || n.status === sf; })
+        .sort(function(a,b){ return new Date(b.publishDate) - new Date(a.publishDate); });
+      list.forEach(function (n) {
+        body.insertAdjacentHTML("beforeend",
+          "<tr><td><div style='display:flex;align-items:center;gap:10px'><img class='a-thumb' src='" + A.esc(MEP.imageURL(n.image)) + "' alt=''>" +
+          "<strong>" + A.esc(n.title) + "</strong></div></td>" +
+          "<td>" + A.esc(n.category) + "</td><td>" + A.fmtDate(n.publishDate) + "</td>" +
+          "<td><span class='" + A.badgeClass(n.status) + "'>" + A.esc(n.status) + "</span></td>" +
+          "<td class='a-row-actions'>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-edit='" + n.id + "'>Edit</button>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-toggle='" + n.id + "'>" + (n.status === "Published" ? "Unpublish" : "Publish") + "</button>" +
+          "<button class='a-btn a-btn-danger a-btn-sm' data-del='" + n.id + "'>Delete</button>" +
+          "</td></tr>");
+      });
+      if (!list.length) body.innerHTML = "<tr><td colspan='5' class='a-empty'>No news articles match your filters.</td></tr>";
+    }
+
+    function openForm(n) {
+      form.reset();
+      document.getElementById("news-modal-title").textContent = n ? "Edit News" : "Create News";
+      form.elements.namedItem("id").value = n ? n.id : "";
+      if (n) {
+        form.elements.namedItem("title").value = n.title; form.elements.namedItem("category").value = n.category; form.elements.namedItem("publishDate").value = n.publishDate;
+        form.elements.namedItem("image").value = n.image; form.elements.namedItem("excerpt").value = n.excerpt; form.elements.namedItem("content").value = n.content; form.elements.namedItem("status").value = n.status;
+      } else {
+        form.elements.namedItem("publishDate").value = new Date().toISOString().slice(0,10);
+      }
+      A.openModal("news-modal");
+    }
+
+    document.getElementById("btn-add-news").addEventListener("click", function () { openForm(null); });
+    document.querySelectorAll('[data-close="news-modal"]').forEach(function (b) { b.addEventListener("click", function () { A.closeModal("news-modal"); }); });
+
+    body.addEventListener("click", function (e) {
+      var d = MEP.load();
+      var editId = e.target.getAttribute("data-edit");
+      var delId = e.target.getAttribute("data-del");
+      var toggleId = e.target.getAttribute("data-toggle");
+      if (editId) openForm(d.news.filter(function(n){return n.id===editId;})[0]);
+      if (delId) {
+        if (confirm("Delete this news article?")) {
+          d.news = d.news.filter(function (n) { return n.id !== delId; });
+          MEP.save(d); A.toast("Article deleted."); render();
+        }
+      }
+      if (toggleId) {
+        var n = d.news.filter(function (x) { return x.id === toggleId; })[0];
+        n.status = n.status === "Published" ? "Draft" : "Published";
+        MEP.save(d); A.toast("Article status updated."); render();
+      }
+    });
+
+    document.getElementById("btn-save-news").addEventListener("click", function () {
+      if (!form.elements.namedItem("title").value.trim() || !form.elements.namedItem("excerpt").value.trim()) { A.toast("Please fill in the required fields."); return; }
+      var d = MEP.load();
+      var id = form.elements.namedItem("id").value;
+      var record = {
+        id: id || MEP.uid("n"),
+        title: form.elements.namedItem("title").value.trim(), category: form.elements.namedItem("category").value, publishDate: form.elements.namedItem("publishDate").value,
+        image: form.elements.namedItem("image").value.trim() || "assets/images/news-intake.jpg",
+        excerpt: form.elements.namedItem("excerpt").value.trim(), content: form.elements.namedItem("content").value.trim() || form.elements.namedItem("excerpt").value.trim(), status: form.elements.namedItem("status").value
+      };
+      if (id) { d.news = d.news.map(function (n) { return n.id === id ? record : n; }); A.toast("Article updated."); }
+      else { d.news.unshift(record); A.toast("Article created."); }
+      MEP.save(d);
+      A.closeModal("news-modal");
+      render();
+    });
+
+    statusFilter.addEventListener("change", render);
+    render();
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media Library | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="Media Library">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">Media Library</h1>
+      </div>
+      <div class="a-topbar-actions"><div class="a-user" id="a-user-info"></div></div>
+    </header>
+    <main class="a-content">
+      <div class="a-toolbar">
+        <span style="font-size:.82rem;color:var(--a-muted)" id="media-count"></span>
+        <button class="a-btn a-btn-primary" id="btn-upload">+ Upload Media</button>
+      </div>
+      <div class="a-panel">
+        <div class="a-panel-body">
+          <div class="a-media-grid" id="media-grid"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="upload-modal">
+  <div class="a-modal">
+    <div class="a-modal-head"><h3>Upload Media</h3><button class="a-modal-close" data-close="upload-modal">✕</button></div>
+    <div class="a-modal-body">
+      <p style="color:var(--a-muted);font-size:.87rem;margin-top:0">Choose a local asset path from assets/images/. Images are shared with the website.</p>
+      <form id="upload-form">
+        <div class="a-field"><label>File Name</label><input type="text" name="filename" placeholder="e.g. training-photo.jpg" required></div>
+        <div class="a-field"><label>Local image path</label><input type="text" name="url" placeholder="assets/images/course-electrical.jpg" required></div>
+      </form>
+    </div>
+    <div class="a-modal-foot">
+      <button class="a-btn a-btn-outline" data-close="upload-modal">Cancel</button>
+      <button class="a-btn a-btn-primary" id="btn-save-upload">Add to Library</button>
+    </div>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="preview-modal">
+  <div class="a-modal">
+    <div class="a-modal-head"><h3 id="preview-name">Preview</h3><button class="a-modal-close" data-close="preview-modal">✕</button></div>
+    <div class="a-modal-body"><img id="preview-img" src="../assets/images/course-maintenance.jpg" alt="" style="width:100%;border-radius:8px"></div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    var grid = document.getElementById("media-grid");
+    var form = document.getElementById("upload-form");
+
+    function render() {
+      var d = MEP.load();
+      grid.innerHTML = "";
+      document.getElementById("media-count").textContent = d.media.length + " file" + (d.media.length === 1 ? "" : "s");
+      d.media.slice().reverse().forEach(function (m) {
+        grid.insertAdjacentHTML("beforeend",
+          "<div class='a-media-item'><img src='" + A.esc(MEP.imageURL(m.url)) + "' alt='' data-preview='" + m.id + "' style='cursor:pointer'>" +
+          "<div class='meta'><strong>" + A.esc(m.filename) + "</strong>" + A.esc(m.type) + " · " + A.esc(m.size) + "<br>" + A.fmtDate(m.uploaded) +
+          "<div class='a-row-actions' style='margin-top:8px'>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-preview='" + m.id + "'>Preview</button>" +
+          "<button class='a-btn a-btn-danger a-btn-sm' data-del='" + m.id + "'>Delete</button>" +
+          "</div></div></div>");
+      });
+      if (!d.media.length) grid.innerHTML = "<div class='a-empty'>No media uploaded yet.</div>";
+    }
+
+    grid.addEventListener("click", function (e) {
+      var d = MEP.load();
+      var pid = e.target.getAttribute("data-preview");
+      var delId = e.target.getAttribute("data-del");
+      if (pid) {
+        var m = d.media.filter(function (x) { return x.id === pid; })[0];
+        document.getElementById("preview-name").textContent = m.filename;
+        document.getElementById("preview-img").src = MEP.imageURL(m.url);
+        ADMIN.openModal("preview-modal");
+      }
+      if (delId) {
+        if (confirm("Delete this file from the media library?")) {
+          d.media = d.media.filter(function (m) { return m.id !== delId; });
+          MEP.save(d); A.toast("File deleted."); render();
+        }
+      }
+    });
+
+    document.getElementById("btn-upload").addEventListener("click", function () { A.openModal("upload-modal"); });
+    document.querySelectorAll('[data-close="upload-modal"]').forEach(function (b) { b.addEventListener("click", function () { A.closeModal("upload-modal"); }); });
+    document.querySelectorAll('[data-close="preview-modal"]').forEach(function (b) { b.addEventListener("click", function () { A.closeModal("preview-modal"); }); });
+
+    document.getElementById("btn-save-upload").addEventListener("click", function () {
+      if (!form.elements.namedItem("filename").value.trim() || !form.elements.namedItem("url").value.trim()) { A.toast("Please complete both fields."); return; }
+      var d = MEP.load();
+      d.media.push({
+        id: MEP.uid("m"), filename: form.elements.namedItem("filename").value.trim(), type: "image/jpeg",
+        size: "Local asset", uploaded: new Date().toISOString().slice(0,10), url: form.elements.namedItem("url").value.trim()
+      });
+      MEP.save(d);
+      A.toast("Media added to library.");
+      A.closeModal("upload-modal");
+      form.reset();
+      render();
+    });
+
+    render();
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Settings | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="Site Settings">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">Site Settings</h1>
+      </div>
+      <div class="a-topbar-actions"><div class="a-user" id="a-user-info"></div></div>
+    </header>
+    <main class="a-content">
+      <form id="settings-form">
+        <div class="a-panel">
+          <div class="a-panel-head"><h3>General</h3></div>
+          <div class="a-panel-body a-form-grid">
+            <div class="a-field"><label>Academy Name</label><input type="text" name="academyName" required></div>
+            <div class="a-field"><label>Website Title</label><input type="text" name="siteTitle"></div>
+            <div class="a-field full"><label>Description</label><textarea name="description" rows="2"></textarea></div>
+          </div>
+        </div>
+
+        <div class="a-panel">
+          <div class="a-panel-head"><h3>Contact</h3></div>
+          <div class="a-panel-body a-form-grid">
+            <div class="a-field"><label>Phone</label><input type="text" name="phone" required></div>
+            <div class="a-field"><label>Telegram</label><input type="text" name="telegram" required></div>
+            <div class="a-field"><label>Email</label><input type="email" name="email"></div>
+            <div class="a-field"><label>Address</label><input type="text" name="address"></div>
+          </div>
+        </div>
+
+        <div class="a-panel">
+          <div class="a-panel-head"><h3>Social</h3></div>
+          <div class="a-panel-body a-form-grid">
+            <div class="a-field full"><label>Facebook Page URL (leave blank if not confirmed)</label><input type="text" name="facebook" placeholder="https://facebook.com/..."></div>
+          </div>
+        </div>
+
+        <div class="a-panel">
+          <div class="a-panel-head"><h3>Branding</h3></div>
+          <div class="a-panel-body a-form-grid">
+            <div class="a-field full"><label>Logo Text (used until a logo file is supplied)</label><input type="text" name="logoText"></div>
+            <p style="grid-column:1/-1;color:var(--a-muted);font-size:.82rem;margin:0">Logo and favicon uploads will be enabled once brand assets are provided by the client.</p>
+          </div>
+        </div>
+
+        <div class="a-panel">
+          <div class="a-panel-head"><h3>SEO</h3></div>
+          <div class="a-panel-body a-form-grid">
+            <div class="a-field full"><label>Meta Title</label><input type="text" name="metaTitle"></div>
+            <div class="a-field full"><label>Meta Description</label><textarea name="metaDescription" rows="2"></textarea></div>
+          </div>
+        </div>
+
+        <button type="submit" class="a-btn a-btn-primary">Save Settings</button>
+      </form>
+    </main>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    var form = document.getElementById("settings-form");
+    Object.keys(data.settings).forEach(function (key) {
+      if (form.elements[key]) form.elements[key].value = data.settings[key];
+    });
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var d = MEP.load();
+      Object.keys(d.settings).forEach(function (key) {
+        if (form.elements[key]) d.settings[key] = form.elements[key].value.trim();
+      });
+      MEP.save(d);
+      A.toast("Site settings saved.");
+    });
+  };
+</script>
+</body>
+</html>

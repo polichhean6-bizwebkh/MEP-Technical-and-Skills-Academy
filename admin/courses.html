@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Courses | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="Courses">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">Courses</h1>
+      </div>
+      <div class="a-topbar-actions"><div class="a-user" id="a-user-info"></div></div>
+    </header>
+    <main class="a-content">
+      <div class="a-toolbar">
+        <div class="a-toolbar-left">
+          <input type="text" class="a-search" id="search-input" placeholder="Search courses...">
+          <select class="a-select" id="category-filter"><option value="">All Categories</option></select>
+          <select class="a-select" id="status-filter">
+            <option value="">All Status</option><option>Published</option><option>Draft</option><option>Unpublished</option>
+          </select>
+        </div>
+        <button class="a-btn a-btn-primary" id="btn-add-course">+ Add Course</button>
+      </div>
+
+      <div class="a-panel">
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Course</th><th>Category</th><th>Duration</th><th>Current Intake</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="courses-body"></tbody>
+        </table></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit Course Modal -->
+<div class="a-modal-overlay" id="course-modal">
+  <div class="a-modal">
+    <div class="a-modal-head"><h3 id="course-modal-title">Add Course</h3><button class="a-modal-close" data-close="course-modal">✕</button></div>
+    <div class="a-modal-body">
+      <form id="course-form">
+        <input type="hidden" name="id">
+        <div class="a-form-grid">
+          <div class="a-field full"><label>Course Name</label><input type="text" name="name" required></div>
+          <div class="a-field"><label>Category</label><input type="text" name="category" required></div>
+          <div class="a-field"><label>Level</label>
+            <select name="level"><option>Beginner</option><option>Beginner to Intermediate</option><option>Intermediate</option><option>Advanced</option></select>
+          </div>
+          <div class="a-field"><label>Duration</label><input type="text" name="duration" placeholder="e.g. 8 weeks" required></div>
+          <div class="a-field"><label>Status</label>
+            <select name="status"><option>Published</option><option>Draft</option><option>Unpublished</option></select>
+          </div>
+          <div class="a-field full"><label>Short Description</label><textarea name="shortDescription" required></textarea></div>
+          <div class="a-field full"><label>Full Description</label><textarea name="fullDescription"></textarea></div>
+          <div class="a-field full"><label>Local image path</label><input type="text" name="image" placeholder="assets/images/course-electrical.jpg"></div>
+          <div class="a-field full"><label>Learning Outcomes (one per line)</label><textarea name="outcomes" placeholder="One outcome per line"></textarea></div>
+          <div class="a-field full"><label>Requirements (one per line)</label><textarea name="requirements" placeholder="One requirement per line"></textarea></div>
+        </div>
+      </form>
+    </div>
+    <div class="a-modal-foot">
+      <button class="a-btn a-btn-outline" data-close="course-modal">Cancel</button>
+      <button class="a-btn a-btn-primary" id="btn-save-course">Save Course</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    var body = document.getElementById("courses-body");
+    var categoryFilter = document.getElementById("category-filter");
+    var statusFilter = document.getElementById("status-filter");
+    var searchInput = document.getElementById("search-input");
+    var form = document.getElementById("course-form");
+
+    var categories = Array.from(new Set(data.courses.map(function(c){return c.category;})));
+    categories.forEach(function (c) { categoryFilter.insertAdjacentHTML("beforeend", '<option>' + A.esc(c) + '</option>'); });
+
+    function currentIntakeLabel(courseId) {
+      var d = MEP.load();
+      var intakes = d.intakes.filter(function (i) { return i.courseId === courseId && i.status !== "Closed"; });
+      return intakes.length ? intakes[0].name : "—";
+    }
+
+    function render() {
+      var d = MEP.load();
+      var term = searchInput.value.trim().toLowerCase();
+      var cat = categoryFilter.value;
+      var stat = statusFilter.value;
+      body.innerHTML = "";
+      var filtered = d.courses.filter(function (c) {
+        if (term && c.name.toLowerCase().indexOf(term) === -1) return false;
+        if (cat && c.category !== cat) return false;
+        if (stat && c.status !== stat) return false;
+        return true;
+      });
+      filtered.forEach(function (c) {
+        body.insertAdjacentHTML("beforeend",
+          "<tr data-id='" + c.id + "'><td><div style='display:flex;align-items:center;gap:10px'>" +
+          "<img class='a-thumb' src='" + A.esc(MEP.imageURL(c.image)) + "' alt=''><strong>" + A.esc(c.name) + "</strong></div></td>" +
+          "<td>" + A.esc(c.category) + "</td><td>" + A.esc(c.duration) + "</td>" +
+          "<td>" + A.esc(currentIntakeLabel(c.id)) + "</td>" +
+          "<td><span class='" + A.badgeClass(c.status) + "'>" + A.esc(c.status) + "</span></td>" +
+          "<td class='a-row-actions'>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-view='" + c.id + "'>View</button>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-edit='" + c.id + "'>Edit</button>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-toggle='" + c.id + "'>" + (c.status === "Published" ? "Unpublish" : "Publish") + "</button>" +
+          "<button class='a-btn a-btn-outline a-btn-sm' data-dup='" + c.id + "'>Duplicate</button>" +
+          "<button class='a-btn a-btn-danger a-btn-sm' data-del='" + c.id + "'>Delete</button>" +
+          "</td></tr>");
+      });
+      if (!filtered.length) body.innerHTML = "<tr><td colspan='6' class='a-empty'>No courses match your filters.</td></tr>";
+    }
+
+    function openForm(course) {
+      form.reset();
+      document.getElementById("course-modal-title").textContent = course ? "Edit Course" : "Add Course";
+      form.elements.namedItem("id").value = course ? course.id : "";
+      if (course) {
+        form.elements.namedItem("name").value = course.name;
+        form.elements.namedItem("category").value = course.category;
+        form.elements.namedItem("level").value = course.level;
+        form.elements.namedItem("duration").value = course.duration;
+        form.elements.namedItem("status").value = course.status;
+        form.elements.namedItem("shortDescription").value = course.shortDescription;
+        form.elements.namedItem("fullDescription").value = course.fullDescription;
+        form.elements.namedItem("image").value = course.image;
+        form.elements.namedItem("outcomes").value = (course.outcomes || []).join("\n");
+        form.elements.namedItem("requirements").value = (course.requirements || []).join("\n");
+      }
+      A.openModal("course-modal");
+    }
+
+    document.getElementById("btn-add-course").addEventListener("click", function () { openForm(null); });
+    document.querySelectorAll('[data-close="course-modal"]').forEach(function (b) { b.addEventListener("click", function () { A.closeModal("course-modal"); }); });
+
+    body.addEventListener("click", function (e) {
+      var d = MEP.load();
+      var editId = e.target.getAttribute("data-edit");
+      var viewId = e.target.getAttribute("data-view");
+      var delId = e.target.getAttribute("data-del");
+      var dupId = e.target.getAttribute("data-dup");
+      var toggleId = e.target.getAttribute("data-toggle");
+
+      if (editId) { openForm(d.courses.filter(function(c){return c.id===editId;})[0]); }
+      if (viewId) { window.open("../course.html?id=" + viewId, "_blank"); }
+      if (delId && (d.intakes.some(function(i){return i.courseId===delId;}) || d.registrations.some(function(r){return r.courseId===delId;}))) { A.toast("This course has intakes or registrations. Unpublish it to retain those records."); return; }
+      if (delId) {
+        if (confirm("Delete this course? Existing registrations will be retained.")) {
+          d.courses = d.courses.filter(function (c) { return c.id !== delId; });
+          MEP.save(d);
+          A.toast("Course deleted.");
+          render();
+        }
+      }
+      if (dupId) {
+        var orig = d.courses.filter(function (c) { return c.id === dupId; })[0];
+        var copy = JSON.parse(JSON.stringify(orig));
+        copy.id = MEP.uid("c");
+        copy.name = orig.name + " (Copy)";
+        copy.status = "Draft";
+        d.courses.push(copy);
+        MEP.save(d);
+        A.toast("Course duplicated.");
+        render();
+      }
+      if (toggleId) {
+        var course = d.courses.filter(function (c) { return c.id === toggleId; })[0];
+        course.status = course.status === "Published" ? "Unpublished" : "Published";
+        MEP.save(d);
+        A.toast("Course status updated.");
+        render();
+      }
+    });
+
+    document.getElementById("btn-save-course").addEventListener("click", function () {
+      if (!form.elements.namedItem("name").value.trim() || !form.elements.namedItem("category").value.trim() || !form.elements.namedItem("shortDescription").value.trim()) {
+        A.toast("Please fill in the required fields.");
+        return;
+      }
+      var d = MEP.load();
+      var id = form.elements.namedItem("id").value;
+      var record = {
+        id: id || MEP.uid("c"),
+        name: form.elements.namedItem("name").value.trim(),
+        category: form.elements.namedItem("category").value.trim(),
+        level: form.elements.namedItem("level").value,
+        duration: form.elements.namedItem("duration").value.trim(),
+        status: form.elements.namedItem("status").value,
+        shortDescription: form.elements.namedItem("shortDescription").value.trim(),
+        fullDescription: form.elements.namedItem("fullDescription").value.trim() || form.elements.namedItem("shortDescription").value.trim(),
+        image: form.elements.namedItem("image").value.trim() || "assets/images/course-mechanical.jpg",
+        outcomes: form.elements.namedItem("outcomes").value.split("\n").map(function(s){return s.trim();}).filter(Boolean),
+        requirements: form.elements.namedItem("requirements").value.split("\n").map(function(s){return s.trim();}).filter(Boolean),
+        modules: (id && d.courses.filter(function(c){return c.id===id;})[0] || {}).modules || [],
+        trainingMethod: (id && d.courses.filter(function(c){return c.id===id;})[0] || {}).trainingMethod || "Classroom instruction combined with hands-on workshop practice"
+      };
+      if (id) {
+        d.courses = d.courses.map(function (c) { return c.id === id ? record : c; });
+        A.toast("Course updated.");
+      } else {
+        d.courses.push(record);
+        A.toast("Course added.");
+      }
+      MEP.save(d);
+      A.closeModal("course-modal");
+      render();
+    });
+
+    searchInput.addEventListener("input", render);
+    categoryFilter.addEventListener("change", render);
+    statusFilter.addEventListener("change", render);
+    render();
+  };
+</script>
+</body>
+</html>

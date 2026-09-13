@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registrations | MEP Academy Admin</title>
+<link rel="stylesheet" href="../css/admin.css">
+<script src="../js/polish.js" defer></script>
+</head>
+<body class="admin-body" data-page-title="Registrations">
+<div class="admin-shell">
+  <aside class="a-sidebar" id="a-sidebar"></aside>
+  <div class="a-main">
+    <header class="a-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="a-sidebar-toggle" id="a-sidebar-toggle">☰</button>
+        <h1 id="a-page-title">Registrations</h1>
+      </div>
+      <div class="a-topbar-actions"><div class="a-user" id="a-user-info"></div></div>
+    </header>
+    <main class="a-content">
+      <div class="a-toolbar">
+        <div class="a-toolbar-left">
+          <input type="text" class="a-search" id="search-input" placeholder="Search by name or phone...">
+          <select class="a-select" id="course-filter"><option value="">All Courses</option></select>
+          <select class="a-select" id="status-filter">
+            <option value="">All Status</option><option>New</option><option>Contacted</option><option>Confirmed</option><option>Cancelled</option>
+          </select>
+        </div>
+        <span style="font-size:.82rem;color:var(--a-muted)" id="result-count"></span>
+      </div>
+      <div class="a-panel">
+        <div class="a-table-wrap"><table class="a-table">
+          <thead><tr><th>Reg ID</th><th>Student Name</th><th>Phone</th><th>Course</th><th>Intake</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="regs-body"></tbody>
+        </table></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="a-modal-overlay" id="reg-modal">
+  <div class="a-modal">
+    <div class="a-modal-head"><h3>Registration Details</h3><button class="a-modal-close" data-close="reg-modal">✕</button></div>
+    <div class="a-modal-body" id="reg-detail-body"></div>
+    <div class="a-modal-foot" id="reg-detail-actions"></div>
+  </div>
+</div>
+
+<script src="../js/data.js"></script>
+<script src="../js/admin.js"></script>
+<script>
+  window.PAGE_INIT = function (data) {
+    var A = ADMIN;
+    var body = document.getElementById("regs-body");
+    var searchInput = document.getElementById("search-input");
+    var courseFilter = document.getElementById("course-filter");
+    var statusFilter = document.getElementById("status-filter");
+    var resultCount = document.getElementById("result-count");
+    var currentRegId = null;
+
+    data.courses.forEach(function (c) { courseFilter.insertAdjacentHTML("beforeend", '<option value="' + c.id + '">' + A.esc(c.name) + '</option>'); });
+
+    function lookup(d, id, list) { return d[list].filter(function (x) { return x.id === id; })[0] || {}; }
+
+    function render() {
+      var d = MEP.load();
+      var term = searchInput.value.trim().toLowerCase();
+      var cf = courseFilter.value, sf = statusFilter.value;
+      body.innerHTML = "";
+      var list = d.registrations.filter(function (r) {
+        if (term && r.name.toLowerCase().indexOf(term) === -1 && r.phone.toLowerCase().indexOf(term) === -1) return false;
+        if (cf && r.courseId !== cf) return false;
+        if (sf && r.status !== sf) return false;
+        return true;
+      }).sort(function(a,b){ return new Date(b.submittedAt) - new Date(a.submittedAt); });
+
+      resultCount.textContent = list.length + " registration" + (list.length === 1 ? "" : "s");
+
+      list.forEach(function (r) {
+        var course = lookup(d, r.courseId, "courses");
+        var intake = lookup(d, r.intakeId, "intakes");
+        body.insertAdjacentHTML("beforeend",
+          "<tr><td><strong>" + A.esc(r.id) + "</strong></td><td>" + A.esc(r.name) + "</td><td>" + A.esc(r.phone) + "</td>" +
+          "<td>" + A.esc(course.name || "—") + "</td><td>" + A.esc(intake.name || "—") + "</td>" +
+          "<td>" + A.fmtDateTime(r.submittedAt) + "</td>" +
+          "<td><span class='" + A.badgeClass(r.status) + "'>" + A.esc(r.status) + "</span></td>" +
+          "<td><button class='a-btn a-btn-outline a-btn-sm' data-open='" + r.id + "'>View</button></td></tr>");
+      });
+      if (!list.length) body.innerHTML = "<tr><td colspan='8' class='a-empty'>No registrations match your filters.</td></tr>";
+    }
+
+    function openDetail(id) {
+      var d = MEP.load();
+      var r = lookup(d, id, "registrations");
+      var course = lookup(d, r.courseId, "courses");
+      var intake = lookup(d, r.intakeId, "intakes");
+      currentRegId = id;
+
+      document.getElementById("reg-detail-body").innerHTML =
+        "<div class='a-info-row'><span>Reference</span><span>" + A.esc(r.id) + "</span></div>" +
+        "<div class='a-info-row'><span>Student Name</span><span>" + A.esc(r.name) + "</span></div>" +
+        "<div class='a-info-row'><span>Gender</span><span>" + A.esc(r.gender || "—") + "</span></div>" +
+        "<div class='a-info-row'><span>Date of Birth</span><span>" + (r.dob ? A.fmtDate(r.dob) : "—") + "</span></div>" +
+        "<div class='a-info-row'><span>Phone</span><span>" + A.esc(r.phone) + "</span></div>" +
+        "<div class='a-info-row'><span>Telegram</span><span>" + A.esc(r.telegram || "—") + "</span></div>" +
+        "<div class='a-info-row'><span>Email</span><span>" + A.esc(r.email || "—") + "</span></div>" +
+        "<div class='a-info-row'><span>Occupation</span><span>" + A.esc(r.occupation || "—") + "</span></div>" +
+        "<div class='a-info-row'><span>Course</span><span>" + A.esc(course.name || "—") + "</span></div>" +
+        "<div class='a-info-row'><span>Intake</span><span>" + A.esc(intake.name || "—") + "</span></div>" +
+        "<div class='a-info-row'><span>Notes</span><span>" + A.esc(r.notes || "—") + "</span></div>" +
+        "<div class='a-info-row'><span>Submitted</span><span>" + A.fmtDateTime(r.submittedAt) + "</span></div>" +
+        "<div class='a-info-row'><span>Status</span><span><span class='" + A.badgeClass(r.status) + "'>" + A.esc(r.status) + "</span></span></div>";
+
+      document.getElementById("reg-detail-actions").innerHTML =
+        "<button class='a-btn a-btn-outline' data-status='Contacted'>Mark Contacted</button>" +
+        "<button class='a-btn a-btn-outline' data-status='Confirmed'>Confirm Registration</button>" +
+        "<button class='a-btn a-btn-danger' data-status='Cancelled'>Cancel</button>";
+
+      A.qsa("[data-status]", document.getElementById("reg-detail-actions")).forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var dd = MEP.load();
+          var reg = lookup(dd, currentRegId, "registrations");
+          var nextStatus=btn.getAttribute('data-status');
+          var intake=dd.intakes.find(function(i){return i.id===reg.intakeId;});
+          if(intake && reg.status==='Cancelled' && nextStatus!=='Cancelled'){
+            if(intake.enrolled>=intake.maxStudents||intake.status==='Closed'){A.toast('This intake has no available places. Open an intake with capacity before restoring the registration.');return;}
+            intake.enrolled++;
+          } else if(intake && reg.status!=='Cancelled' && nextStatus==='Cancelled') { intake.enrolled=Math.max(0,intake.enrolled-1); }
+          if(intake && intake.status!=='Closed') intake.status=intake.enrolled>=intake.maxStudents?'Closed':intake.maxStudents-intake.enrolled<=2?'Almost Full':'Open';
+          reg.status = nextStatus;
+          MEP.save(dd);
+          A.toast("Registration marked " + reg.status + ".");
+          A.closeModal("reg-modal");
+          render();
+        });
+      });
+
+      A.openModal("reg-modal");
+    }
+
+    body.addEventListener("click", function (e) {
+      var id = e.target.getAttribute("data-open");
+      if (id) openDetail(id);
+    });
+    document.querySelectorAll('[data-close="reg-modal"]').forEach(function (b) { b.addEventListener("click", function () { A.closeModal("reg-modal"); }); });
+
+    searchInput.addEventListener("input", render);
+    courseFilter.addEventListener("change", render);
+    statusFilter.addEventListener("change", render);
+    render();
+  };
+</script>
+</body>
+</html>
